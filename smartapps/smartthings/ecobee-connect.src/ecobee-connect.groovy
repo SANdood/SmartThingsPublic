@@ -44,11 +44,13 @@
  *	1.2.10- Handle postalCode=0, display correct icon for emergency heat (with heat pump)
  *	1.2.11- Optimize prior fix
  *	1.2.12- Added minDelta handling (for setting heat/cool setpoints)
+ *	1.2.13- Minor performance optimizations
+ *	1.2.14- Improved handling of locations & zipodes WRT sunrise/sunset calculations
  *
  */  
 import groovy.json.JsonOutput
 
-def getVersionNum() { return "1.2.12" }
+def getVersionNum() { return "1.2.14" }
 private def getVersionLabel() { return "Ecobee (Connect) version ${getVersionNum()}" }
 private def getHelperSmartApps() {
 	return [ 
@@ -973,8 +975,14 @@ def initialize() {
     getTimeZone()		// these will set/refresh atomicState.timeZone
     getZipCode()		// and atomicState.zipCode (because atomicState.forcePoll is true)
     
-    // get sunrise/sunset for the location of the thermostats (prefers thermostat.location.postalCode)
-    def sunriseAndSunset = (atomicState.zipCode != null) ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    // get sunrise/sunset for the location of the thermostats (getZipCode() prefers thermostat.location.postalCode)
+    // def sunriseAndSunset = (atomicState.zipCode != null) ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    def sunriseAndSunset = getSunriseAndSunset(zipCode: atomicState.zipCode)
+    if (!(sunriseAndSunset.sunrise instanceof Date)) {
+    	// the zip code is invalid or didn't return the data as expected
+ 		LOG("sunriseAndSunset not set as expected, using default hub location")
+ 		sunriseAndSunset = getSunriseAndSunset()
+ 	}
     LOG("sunriseAndSunset == ${sunriseAndSunset}")
     if(atomicState.timeZone) {
         atomicState.sunriseTime = sunriseAndSunset.sunrise.format("HHmm", TimeZone.getTimeZone(atomicState.timeZone)).toInteger()
@@ -1156,7 +1164,14 @@ def sunriseEvent(evt) {
     atomicState.lastSunriseEvent = now()
     atomicState.lastSunriseEventDate = getTimestamp()
     
-    def sunriseAndSunset = atomicState.zipCode ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    // def sunriseAndSunset = atomicState.zipCode ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    def sunriseAndSunset = getSunriseAndSunset(zipCode: atomicState.zipCode)
+    if (!(sunriseAndSunset.sunrise instanceof Date)) {
+     	// the zip code is invalid or didn't return the data as expected
+ 		LOG("sunriseAndSunset not set as expected, using default hub location")
+		sunriseAndSunset = getSunriseAndSunset()
+    }
+    
     if(atomicState.timeZone) {
         atomicState.sunriseTime = sunriseAndSunset.sunrise.format("HHmm", TimeZone.getTimeZone(atomicState.timeZone)).toInteger()
     } else if( (sunriseAndSunset !=  [:]) && (location != null) ) {
@@ -1176,7 +1191,13 @@ def sunsetEvent(evt) {
     atomicState.lastSunsetEventDate = getTimestamp()
     
     // get sunrise/sunset for the location of the thermostats (prefers thermostat.location.postalCode)
-    def sunriseAndSunset = atomicState.zipCode ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    // def sunriseAndSunset = atomicState.zipCode ? getSunriseAndSunset(zipCode: atomicState.zipCode) : getSunRiseAndSunset()
+    def sunriseAndSunset = getSunriseAndSunset(zipCode: atomicState.zipCode)
+    if (!(sunriseAndSunset.sunset instanceof Date)) {
+     	// the zip code is invalid or didn't return the data as expected
+ 		LOG("sunriseAndSunset not set as expected, using default hub location")
+ 		sunriseAndSunset = getSunriseAndSunset()
+    }
     if(atomicState.timeZone) {
         atomicState.sunsetTime = sunriseAndSunset.sunset.format("HHmm", TimeZone.getTimeZone(atomicState.timeZone)).toInteger()
     } else if( (sunriseAndSunset !=  [:]) && (location != null) ) {
@@ -2328,8 +2349,8 @@ def updateThermostatData() {
 	boolean usingMetric = wantMetric() // cache the value to save the function calls
 	def forcePoll = atomicState.forcePoll
     if (forcePoll) {
-        if (atomicState.timeZone == null) atomicState.timeZone = getTimeZone()
-    	if (atomicState.zipCode == null) atomicState.zipCode = getZipCode()
+        if (atomicState.timeZone == null) getTimeZone() // both will update atomicState with valid timezone/zipcode if available
+    	if (atomicState.zipCode == null) getZipCode()
     }
     Integer apiPrecision = usingMetric ? 2 : 1					// highest precision available from the API
     Integer userPrecision = getTempDecimals()						// user's requested display precision
@@ -2410,12 +2431,14 @@ def updateThermostatData() {
 			tempTemperature = myConvertTemperatureIfNeeded( (runtime.actualTemperature.toDouble() / 10.0), "F", apiPrecision)
             Double tempHeatAt = runtime.desiredHeat.toDouble()
             Double tempCoolAt = runtime.desiredCool.toDouble()
+            
             if ((equipStatus == 'idle') || (equipStatus == 'fan')) {	// Show trigger point if idle; tile shows "Heating at 69.5" vs. "Heating to 70.0"
             	tempHeatAt = tempHeatAt - statSettings.stage1HeatingDifferentialTemp.toDouble()
                 tempCoolAt = tempCoolAt + statSettings.stage1CoolingDifferentialTemp.toDouble()
             }
         	tempHeatingSetpoint = myConvertTemperatureIfNeeded( (tempHeatAt / 10.0), 'F', apiPrecision)
         	tempCoolingSetpoint = myConvertTemperatureIfNeeded( (tempCoolAt / 10.0), 'F', apiPrecision)
+            
         	if (atomicState.weather && atomicState.weather?.containsKey(tid) && atomicState.weather[tid].containsKey('temperature')) {
             	tempWeatherTemperature = myConvertTemperatureIfNeeded( ((atomicState.weather[tid].temperature.toDouble() / 10.0)), "F", apiPrecision)
         	} else {tempWeatherTemperature = 451.0} // will happen only once, when weather object changes to shortWeather
@@ -2772,16 +2795,17 @@ def updateThermostatData() {
             def oftenList = [tempTemperature,occupancy,runtime.actualHumidity,tempHeatingSetpoint,tempCoolingSetpoint,wSymbol,tempWeatherTemperature,humiditySetpoint,userPrecision]
             def lastOList = []
             lastOList = changeOften[tid]
-            if (forcePoll || !lastOList || (lastOList.size() < 9)) lastOList = [999,"x",-1,-1,-1,-999,-999,-1,-1] 
-            if (lastOList[0] != tempTemperature) data += [temperature: String.format("%.${apiPrecision}f", tempTemperature.toDouble().round(apiPrecision)),]
+            if (forcePoll || !lastOList || (lastOList.size() < 9)) lastOList = [999,'x',-1,-1,-1,-999,-999,-1,-1] 
+            if (lastOList[0] != tempTemperature) data += [temperature: String.format("%.${apiPrecision}f", tempTemperature?.round(apiPrecision)),]
             if (lastOList[1] != occupancy) data += [motion: occupancy,]
             if (lastOList[2] != runtime.actualHumidity) data += [humidity: runtime.actualHumidity,]
             // send these next two also when the userPrecision changes
-            if ((lastOList[3] != tempHeatingSetpoint) || (lastOList[8] != userPrecision)) data += [heatingSetpoint: String.format("%.${userPrecision}f", tempHeatingSetpoint?.toDouble().round(userPrecision)),]
-            if ((lastOList[4] != tempCoolingSetpoint) || (lastOList[8] != userPrecision)) data += [coolingSetpoint: String.format("%.${userPrecision}f", tempCoolingSetpoint?.toDouble().round(userPrecision)),]
+            if ((lastOList[3] != tempHeatingSetpoint) || (lastOList[8] != userPrecision)) data += [heatingSetpoint: String.format("%.${userPrecision}f", tempHeatingSetpoint?.round(userPrecision)),]
+            if ((lastOList[4] != tempCoolingSetpoint) || (lastOList[8] != userPrecision)) data += [coolingSetpoint: String.format("%.${userPrecision}f", tempCoolingSetpoint?.round(userPrecision)),]
             if (lastOList[5] != wSymbol) data += [weatherSymbol: wSymbol]
-            if ((lastOList[6] != tempWeatherTemperature)|| (lastOList[8] != userPrecision)) data += [weatherTemperature: String.format("%.${userPrecision}f", tempWeatherTemperature?.toDouble().round(userPrecision)),]
+            if ((lastOList[6] != tempWeatherTemperature)|| (lastOList[8] != userPrecision)) data += [weatherTemperature: String.format("%0${userPrecision+2}.${userPrecision}f", tempWeatherTemperature?.round(userPrecision)),]
             if (lastOList[7] != humiditySetpoint) data += [humiditySetpoint: humiditySetpoint,]
+            if (lastOList[8] != userPrecision) data+= [userPrecision: userPrecision,]
            	changeOften[tid] = oftenList
             atomicState.changeOften = changeOften
 		}
@@ -3789,7 +3813,10 @@ private def getTimeZone() {
         	// we have thermostats in more than one time zone - going to have to use location data every time
             myTimeZone = null
         }
-        if (myTimeZone != null) atomicState.timeZone = myTimeZone		// can't save the timeZone object, so we store the ID/Name
+        if (myTimeZone != null) {
+        	atomicState.timeZone = myTimeZone		// can't save the timeZone object, so we store the ID/Name
+        	return myTimeZone
+        }
     }
     return atomicState.timeZone
 }
@@ -3802,7 +3829,7 @@ private String getZipCode() {
         settings.thermostats?.each{
         	String tid = it.split(/\./).last()
             String statZipCode = (atomicState.statLocation && atomicState.statLocation[tid]) ? atomicState.statLocation[tid].postalCode : ''
-            if ((statZipCode != '') && (statZipCode.isNumber() && (statZipCode.toInteger() != 0))) {
+            if ((statZipCode != '') && ((statZipCode.isNumber() && (statZipCode.toInteger() != 0)) || !statZipCode.isNumber())) { // allow non-numeric zip codes from Ecobee API
             	// let's see how many postalCodes we are using across all the thermostats
         		if (!zipCodes || (!zipCodes.contains(statZipCode))) zipCodes += [statZipCode]
             	// if we have the Thermostat Location, use the postalCode from the thermostat
