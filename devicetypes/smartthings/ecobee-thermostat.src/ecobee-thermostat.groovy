@@ -58,10 +58,10 @@
  *	1.2.18 - Fixed typos in prior fix, added heatCoolMinDelta handling
  *	1.2.19 - Hard-coded thermostat commands entry points
  *	1.2.20 - Eliminate extraneous temp display between up/down arrows of multiAttributeTile
- * 
+ *  1.2.21 - Fix non-temporary program changes
  */
 
-def getVersionNum() { return "1.2.20" }
+def getVersionNum() { return "1.2.21" }
 private def getVersionLabel() { return "Ecobee Thermostat version ${getVersionNum()}" }
 import groovy.json.JsonSlurper
  
@@ -1798,7 +1798,7 @@ void setThermostatProgram(String program, holdType=null, holdHours=2) {
     def scheduledProgram = device.currentValue('scheduledProgram')
     
     if (currentProgram == program) {
-    	if (currentProgram == currentProgramName) {
+    	if ((currentProgram == program) && (sendHoldType == ‘nextTransition’)) {
         	LOG("Thermostat Program is ${program} (already)", 2, this, 'info')
             return
         } else if ((currentProgramName == "Hold: ${currentProgram}") || (currentProgramName == "Auto ${currentProgram}")) {
