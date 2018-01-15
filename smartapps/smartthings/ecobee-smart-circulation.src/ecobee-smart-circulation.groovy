@@ -32,9 +32,10 @@
  *	1.2.1 - Development Iterations
  *  1.2.2 - Can now set adjustments based on temperature difference between inside (average) and outside
  *	1.2.3 - Protect against LOG type errors
+ *	1.2.4 - Allow changes while thermostatMode is 'off' also
  *
  */
-def getVersionNum() { return "1.2.3" }
+def getVersionNum() { return "1.2.4" }
 private def getVersionLabel() { return "ecobee Smart Circulation Version ${getVersionNum()}" }
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -396,7 +397,7 @@ def deltaHandler(evt=null) {
     
     // Makes no sense to change fanMinOnTime while heating or cooling is running - take action ONLY on events while idle or fan is running
     def statState = theThermostat.currentValue("thermostatOperatingState")
-    if ((statState != 'idle') && (statState != 'fan only')) {
+    if ((statState != 'idle') && (statState != 'fan only') && (statState != 'off')) {
     	LOG("${theThermostat} is ${statState}, no adjustments made", 4, "", 'trace' )
         atomicState.amIRunning = false
         return
