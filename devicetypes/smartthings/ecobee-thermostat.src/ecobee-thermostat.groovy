@@ -62,11 +62,11 @@
  */
 
 def getVersionNum() { return "1.2.21a" }
-private def getVersionLabel() { return "Ecobee Thermostat version ${getVersionNum()}" }
+private def getVersionLabel() { return "Ecobee Suite Thermostat, version ${getVersionNum()}" }
 import groovy.json.JsonSlurper
  
 metadata {
-	definition (name: "Ecobee Thermostat", namespace: "smartthings", author: "SmartThings") {
+	definition (name: "Ecobee Thermostat", namespace: "SANdood", author: "SmartThings") {
 		capability "Actuator"
 		capability "Thermostat"
         capability "Sensor"
