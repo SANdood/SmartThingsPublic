@@ -32,8 +32,9 @@
  * 1.2.0 - Update to support holdHours and thermostat holdAction
  * 1.2.1 - Corrected setHold logic 
  * 1.2.2 - Protect against LOG type errors
+ * 1.2.90- Final release before 1.3.0 transition
  */
-def getVersionNum() { return "1.2.2" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "ecobee Routines Version ${getVersionNum()}" }
 
 
