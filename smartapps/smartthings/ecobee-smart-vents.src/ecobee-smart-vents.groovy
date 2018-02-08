@@ -23,8 +23,9 @@
  *	1.0.9 - Close the vents if idle while in cool Mode
  *  1.2.0 - Sync version number with new holdHours/holdAction support
  *	1.2.1 - Protect against LOG type errors
+ *	1.2.90- Final release before 1.3.0 transition
  */
-def getVersionNum() { return "1.2.1" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "ecobee Smart Vents Version ${getVersionNum()}" }
 import groovy.json.JsonSlurper
 
