@@ -47,15 +47,11 @@
  *	1.2.13- Minor performance optimizations
  *	1.2.14- Improved handling of locations & zipodes WRT sunrise/sunset calculations
  *	1.2.89- Prep for Final Release
- *	1.3.0 - Major Release: Optimized heat/coolSetpoint UI and API
- *	1.3.0f- Correct precision for C heat/cool ranges
- *	1.3.0h- Fix heat/cool Differential
- *  1.3.0i- Added org.apache.http.conn.ConnectTimeoutException handling...
- *	1.3.0j- Changed Events order to ensure temperatureDisplay updates after connection lost
+ *	1.2.90 - Final Release before 1.3.0 transition
  */  
 import groovy.json.JsonOutput
 
-def getVersionNum() { return "1.2.89" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "Ecobee (Connect) version ${getVersionNum()}" }
 private def getHelperSmartApps() {
 	return [ 
