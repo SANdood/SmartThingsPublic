@@ -27,10 +27,11 @@
  *	1.2.2	- 	Include device names in notifications
  *	1.2.3	-	Protect against LOG type errors
  *	1.2.4	-	Fix typo in turnOffHVAC
+ *	1.2.90	- 	Final release before 1.3.0 transition
  *
  */
  
-def getVersionNum() { return "1.2.4" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "ecobee Open Contacts version ${getVersionNum()}" }
 
 definition(
