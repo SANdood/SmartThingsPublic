@@ -28,11 +28,12 @@
  *	1.2.1  - Reinstated default icon for default Temperature tile
  *	1.2.2  - Added new Program icons, Awake/Wakeup attributes (not currently displayed)
  *	1.2.3  - Protect against LOG type errors
+ *	1.2.90 - Final release prior to 1.3.0 cut-over
  *
  */
 
 def getVersionNum() { return "1.2.3" }
-private def getVersionLabel() { return "Ecobee Sensor Version ${getVersionNum()}" }
+private def getVersionLabel() { return "Ecobee Sensor, Version ${getVersionNum()}" }
 private def programIdList() { return ["home","away","sleep"] } // we only support these program IDs for addSensorToProgram()
 
 metadata {
