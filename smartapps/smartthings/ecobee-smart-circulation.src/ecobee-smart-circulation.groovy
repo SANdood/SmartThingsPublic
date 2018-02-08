@@ -33,9 +33,10 @@
  *  1.2.2 - Can now set adjustments based on temperature difference between inside (average) and outside
  *	1.2.3 - Protect against LOG type errors
  *	1.2.4 - Allow changes while thermostatMode is 'off' also
+ *	1.2.90- Final release before 1.3.0 transition
  *
  */
-def getVersionNum() { return "1.2.4" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "ecobee Smart Circulation Version ${getVersionNum()}" }
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
