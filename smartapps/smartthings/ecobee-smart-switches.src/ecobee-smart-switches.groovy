@@ -17,8 +17,9 @@
  *	1.0.3 - Updated settings and TempDisable handling
  *	1.2.0 - Sync version number with new holdHours/holdAction support
  *	1.2.1 - Protect agsinst LOG type errors
+ *	1.2.90- Final release before 1.3.0 transition
  */
-def getVersionNum() { return "1.2.1" }
+def getVersionNum() { return "1.2.90" }
 private def getVersionLabel() { return "ecobee Smart Switches Version ${getVersionNum()}" }
 
 definition(
