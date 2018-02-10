@@ -47,11 +47,12 @@
  *	1.2.13- Minor performance optimizations
  *	1.2.14- Improved handling of locations & zipodes WRT sunrise/sunset calculations
  *	1.2.89- Prep for Final Release
- *	1.2.90 - Final Release before 1.3.0 transition
+ *	1.2.90- Final Release before 1.3.0 transition
+ *	1.2.91- Sort lists of Thermostat and Sensor names in LOGs
  */  
 import groovy.json.JsonOutput
 
-def getVersionNum() { return "1.2.90" }
+def getVersionNum() { return "1.2.91" }
 private def getVersionLabel() { return "Ecobee (Connect) version ${getVersionNum()}" }
 private def getHelperSmartApps() {
 	return [ 
@@ -1490,7 +1491,7 @@ def pollChildren(deviceId=null,force=false) {
     String preText = debugLevel(2) ? '' : 'pollChildren() - ' 
     if (forcePoll || somethingChanged) {
     	alertsUpdated = forcePoll || atomicState.alertsUpdated
-        LOG("${preText}Requesting updates for thermostat${thermostatsToPoll.contains(',')?'s':''} ${thermostatsToPoll}${forcePoll?' (forced)':''}", 2, null, 'trace')
+        LOG("${preText}Requesting updates for thermostat${thermostatsToPoll.contains(',')?'s':''} ${thermostatsToPoll}${forcePoll?' (forced)':''}", 2, null, 'info')
     	results = pollEcobeeAPI(thermostatsToPoll)  // This will update the values saved in the state which can then be used to send the updates
         if (results) {
        		def polledMS = now()
@@ -2375,6 +2376,7 @@ def updateSensorData() {
 	atomicState.remoteSensorsData = sensorCollector
     if (preText=='') {
     	def sz = sNames.size()
+		if (sz > 1) sNames.sort()
         LOG("Device data updated for ${sz} sensor${sz!=1?'s':''}${sNames?' '+sNames:''}",2, null, 'info')
     } else {
 		if (debugLevelFour) LOG("updateSensorData() - Updated these remoteSensors: ${sensorCollector}", 4, null, 'trace') 
@@ -3001,6 +3003,7 @@ def updateThermostatData() {
 		return collector
 	}
     Integer nSize = tstatNames.size()
+	if (nSize > 1) tstatNames.sort()
     LOG("${preText}Device data updated for ${nSize} thermostat${nSize!=1?'s':''} ${nSize!=0?tstatNames:''}", 2, null, 'info')
 }
 
