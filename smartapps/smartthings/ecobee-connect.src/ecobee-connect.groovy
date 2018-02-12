@@ -49,10 +49,11 @@
  *	1.2.89- Prep for Final Release
  *	1.2.90- Final Release before 1.3.0 transition
  *	1.2.91- Sort lists of Thermostat and Sensor names in LOGs
+ *  1.2.92- Handle SSL error, fix poll daemon recovery
  */  
 import groovy.json.JsonOutput
 
-def getVersionNum() { return "1.2.91" }
+def getVersionNum() { return "1.2.92" }
 private def getVersionLabel() { return "Ecobee (Connect) version ${getVersionNum()}" }
 private def getHelperSmartApps() {
 	return [ 
@@ -1317,7 +1318,7 @@ private def Boolean isDaemonAlive(daemon="all") {
 	
     if (daemon == "poll" || daemon == "all") {
 		def lastScheduledPoll = atomicState.lastScheduledPoll
-		def timeSinceLastScheduledPoll = (!lastSchedulePoll || (lastScheduledPoll == 0)) ? 0 : ((now() - lastScheduledPoll) / 60000)
+		def timeSinceLastScheduledPoll = ((lastScheduledPoll == null) || (lastScheduledPoll == 0)) ? 1000 : ((now() - lastScheduledPoll) / 60000)
 		if (debugLevel(4)) {
         	LOG("isDaemonAlive() - Time since last poll? ${timeSinceLastScheduledPoll} -- lastScheduledPoll == ${lastScheduledPoll}", 4, null, "info")
     		LOG("isDaemonAlive() - Checking daemon (${daemon}) in 'poll'", 4, null, "trace")
@@ -1328,7 +1329,7 @@ private def Boolean isDaemonAlive(daemon="all") {
     
     if (daemon == "watchdog" || daemon == "all") {
 		def lastScheduledWatchdog = atomicState.lastScheduledWatchdog
-	    def timeSinceLastScheduledWatchdog = (!lastScheduledWatchdog || (lastScheduledWatchdog == 0)) ? 0 : ((now() - lastScheduledWatchdog) / 60000)
+	    def timeSinceLastScheduledWatchdog = ((lastScheduledWatchdog == null) || (lastScheduledWatchdog == 0)) ? 1000 : ((now() - lastScheduledWatchdog) / 60000)
 		if (debugLevel(4)) {
         	LOG("isDaemonAlive() - Time since watchdog activation? ${timeSinceLastScheduledWatchdog} -- lastScheduledWatchdog == ${lastScheduledWatchdog}", 4, null, "info")
     		LOG("isDaemonAlive() - Checking daemon (${daemon}) in 'watchdog'", 4, null, "trace")
@@ -1652,7 +1653,7 @@ private boolean checkThermostatSummary(thermostatIdsString) {
         // Do not add an else statement to run immediately as this could cause an long looping cycle
         runIn(atomicState.reAttemptInterval.toInteger(), "pollChildren", [overwrite: true])
        	result = false    
-    } catch (org.apache.http.conn.ConnectTimeoutException e) {
+    } catch (org.apache.http.conn.ConnectTimeoutException | javax.net.ssl.SSLPeerUnverifiedException e) {
     	LOG("checkThermostatSummary() - ${e}.",1,null,'warn')  // Just log it, and hope for better next time...
         atomicState.connected = 'warn'
         atomicState.lastPoll = now()
@@ -1981,7 +1982,7 @@ private def pollEcobeeAPI(thermostatIdsString = '') {
         // Do not add an else statement to run immediately as this could cause an long looping cycle if the API is offline
         runIn(atomicState.reAttemptInterval.toInteger(), "pollChildren", [overwrite: true]) 
         result = false
-    } catch (org.apache.http.conn.ConnectTimeoutException e) {
+    } catch (org.apache.http.conn.ConnectTimeoutException | javax.net.ssl.SSLPeerUnverifiedException e) {
     	LOG("${preText}${e}.",1,null,'warn') 	// Just log it, and hope for better next time...
         atomicState.connected = 'warn'
         atomicState.lastPoll = now()
@@ -3032,6 +3033,9 @@ private refreshAuthToken(child=null) {
     // check to see if token was recently refreshed (eliminate multiple concurrent threads)
 	if (timeBeforeExpiry > 2000) {
     	LOG("refreshAuthToken() - skipping, token expires in ${timeBeforeExpiry/1000} seconds",3,null,'info')
+        // Double check that the daemons are still running
+        if (!isDaemonAlive("poll")) { LOG("refreshAuthToken - rescheduling poll daemon",1,null,'warn'); spawnDaemon("poll") }
+    	if (!isDaemonAlive("watchdog")) { LOG("refreshAuthToken - rescheduling watchdog daemon",1,null,'warn'); spawnDaemon("watchdog") }
     	return true
     }
     
@@ -3100,7 +3104,11 @@ private refreshAuthToken(child=null) {
                         }
                     } else {
                     	LOG("No jsonMap??? ${jsonMap}", 2, child, 'trace')
-                    }               
+                    } 
+                    // scheduleWatchdog(null, false) 
+				    // Reschedule polling if it has been a while since the previous poll    
+    				if (!isDaemonAlive("poll")) { LOG("refreshAuthToken - rescheduling poll daemon",1,null,'warn'); spawnDaemon("poll") }
+    				if (!isDaemonAlive("watchdog")) { LOG("refreshAuthToken - rescheduling watchdog daemon",1,null,'warn'); spawnDaemon("watchdog") }
                     return true
                 } else {
                     LOG("refreshAuthToken() - Failed ${resp.status} : ${resp.status.code}!", 1, child, 'error')
